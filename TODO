@@ -1,0 +1,4 @@
+Add writing
+Add driver capability so we can do custom stuff on file or directory basis
+Add symlinks so we can link to dev
+Add dev nodes?
