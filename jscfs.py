@@ -9,6 +9,7 @@ import time
 import unittest
 
 from argparse import ArgumentParser
+from collections import namedtuple
 from grp import getgrnam
 from pwd import getpwnam
 
@@ -20,14 +21,7 @@ class NodeType(Enum):
     Dir = 'directory'
 
 
-class DirEntry:
-    def __init__(self, node):
-        self.name = node.name.encode('utf-8')
-        self.inode = node.inode
-
-    def __repr__(self):
-        s = '({0.name} {0.inode})'.format(self)
-        return s
+DirEntry = namedtuple('DirEntry', ['name', 'inode'])
 
 
 class Node:
@@ -44,7 +38,7 @@ class Node:
             attr.st_mode |= stat.S_IFDIR
             self.children = kwargs.get('children', None)
             for n, child in enumerate(self.children):
-                self.children[n] = DirEntry(child)
+                self.children[n] = DirEntry(child.name.encode('utf-8'), child.inode)
         elif self.type == NodeType.File:
             attr.st_mode |= stat.S_IFREG
             self.contents = kwargs.get('contents', None)
