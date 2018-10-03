@@ -9,6 +9,8 @@ import time
 import unittest
 
 from argparse import ArgumentParser
+from grp import getgrnam
+from pwd import getpwnam
 
 log = logging.getLogger(__name__)
 
@@ -27,8 +29,6 @@ class DirEntry:
         s = '({0.name} {0.inode})'.format(self)
         return s
 
-from pwd import getpwnam
-from grp import getgrnam
 
 class Node:
     def __init__(self, inode, **kwargs):
@@ -39,11 +39,14 @@ class Node:
         mode = int(kwargs.get('mode', None), 8)
         attr = llfuse.EntryAttributes()
         attr.st_size = 0
+        attr.st_mode = mode
         if self.type == NodeType.Dir:
-            attr.st_mode = (stat.S_IFDIR | mode)
+            attr.st_mode |= stat.S_IFDIR
             self.children = kwargs.get('children', None)
+            for n, child in enumerate(self.children):
+                self.children[n] = DirEntry(child)
         elif self.type == NodeType.File:
-            attr.st_mode = (stat.S_IFREG | mode)
+            attr.st_mode |= stat.S_IFREG
             self.contents = kwargs.get('contents', None)
             if self.contents != None:
                 self.contents = self.contents.encode('utf-8')
@@ -75,7 +78,6 @@ class JsonSysClassFS(llfuse.Operations):
         self.root_inode = llfuse.ROOT_INODE
         self.superblock = [None] * (self.root_inode + 1)
         self.jdata = json.loads(json_str, object_hook=self.mknode)
-        self.fixup_directories()
 
     def mknode(self, d):
         name = d.get('name', None)
@@ -90,18 +92,10 @@ class JsonSysClassFS(llfuse.Operations):
         assert(type != None)
         return node
 
-    def fixup_directories(self):
-        for inode in self.superblock:
-            if inode and inode.type == NodeType.Dir:
-                for n, node in enumerate(inode.children):
-                    inode.children[n] = DirEntry(node)
-
     def __repr__(self):
         s = '\n'.join(str(n) for n in self.superblock)
         return s
 
-
-    #
     # llfuse.Operations start here
 
     def getattr(self, inode, ctx=None):
