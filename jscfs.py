@@ -125,9 +125,12 @@ class JsonSysClassFS(llfuse.Operations):
         log.debug('open %d', inode)
         filenode = self.superblock[inode]
         assert filenode.type == NodeType.File
-        if flags & os.O_RDWR or flags & os.O_WRONLY:
-            raise llfuse.FUSEError(errno.EPERM)
+        #if flags & os.O_RDWR or flags & os.O_WRONLY:
+        #    raise llfuse.FUSEError(errno.EPERM)
         return inode
+
+    def release(self, inode):
+        pass
 
     def read(self, inode, off, size):
         log.debug('read %d %d:%d', inode, off, size)
@@ -136,6 +139,15 @@ class JsonSysClassFS(llfuse.Operations):
         if filenode.contents != None:
             return filenode.contents[off:off+size]
         return b''
+
+    def write(self, inode, off, buf):
+        log.debug('write %d %d:%s', inode, off, buf)
+        filenode = self.superblock[inode]
+        assert filenode.type == NodeType.File
+        if filenode.contents == None:
+            filenode.contents = b''
+        filenode.contents = filenode.contents[:offset] + buf + filenode.contents[offset+len(buf):]
+        return len(buf)
 
 
 class TestJscfsMethods(unittest.TestCase):
@@ -186,7 +198,7 @@ class TestJscfsMethods(unittest.TestCase):
                         "children" : [
                            {
                               "name" : "runtime_status", "type" : "file",
-                              "mode" : "0444", "user" : "root", "group" : "root",
+                              "mode" : "0666", "user" : "root", "group" : "root",
                               "contents" : "contents of runtime_status"
                            }
                         ]
@@ -249,7 +261,7 @@ class TestJscfsMethods(unittest.TestCase):
                         "children" : [
                            {
                               "name" : "runtime_status", "type" : "file",
-                              "mode" : "0444", "user" : "root", "group" : "root",
+                              "mode" : "0666", "user" : "root", "group" : "root",
                               "contents" : "contents of runtime_status"
                            }
                         ]
