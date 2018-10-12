@@ -38,6 +38,8 @@ from grp import getgrnam
 class Node:
     def __init__(self, inode, **kwargs):
         self.inode = inode
+        self.children = None
+        self.contents = None
         self.name = kwargs.get('name', None)
 
         self.type = NodeType(kwargs.get('type', None))
@@ -64,6 +66,14 @@ class Node:
         attr.st_gid = getpwnam(kwargs.get('user', None)).pw_uid
         attr.st_ino = inode
         self.attr = attr
+
+        log.debug("inode: {}".format(self.inode))
+        log.debug("name: {}".format(self.name))
+        log.debug("type: {}".format(self.type))
+        log.debug("mode: {}".format(mode))
+        if self.children: log.debug("children: {}".format(self.children))
+        if self.contents: log.debug("contents: {}".format(self.contents))
+        log.debug("attr: {}".format(self.attr))
 
     def __repr__(self):
         s = '({1.st_ino} {0.name} {0.type} {1.st_mode:o} {1.st_uid} {1.st_gid})'.format(self,self.attr)
@@ -329,6 +339,10 @@ def parse_args():
 
     parser.add_argument('mountpoint', type=str,
                         help='Where to mount the file system')
+    
+    parser.add_argument('--json', type=str,
+                        help='JSON file to load')
+
     parser.add_argument('--debug', action='store_true', default=False,
                         help='Enable debugging output')
     parser.add_argument('--debug-fuse', action='store_true', default=False,
@@ -340,7 +354,14 @@ def main():
     options = parse_args()
     init_logging(options.debug)
 
-    testfs = JsonSysClassFS(TestJscfsMethods.test_json_str)
+    if options.json:
+        with open(options.json) as data_file:
+            data = json.load(data_file)
+
+        testfs = JsonSysClassFS(json.dumps(data))
+    else:
+        testfs = JsonSysClassFS(TestJscfsMethods.test_json_str)
+
     fuse_options = set(llfuse.default_options)
     fuse_options.add('fsname=jscfs')
     if options.debug_fuse:
