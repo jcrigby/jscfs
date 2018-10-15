@@ -10,6 +10,11 @@ import unittest
 
 from argparse import ArgumentParser
 
+from collections import namedtuple
+from grp import getgrnam
+from pwd import getpwnam
+
+
 log = logging.getLogger(__name__)
 
 from enum import Enum
@@ -100,8 +105,6 @@ class JsonSysClassFS(llfuse.Operations):
         s = '\n'.join(str(n) for n in self.superblock)
         return s
 
-
-    #
     # llfuse.Operations start here
 
     def getattr(self, inode, ctx=None):
@@ -141,6 +144,9 @@ class JsonSysClassFS(llfuse.Operations):
             raise llfuse.FUSEError(errno.EPERM)
         return inode
 
+    def release(self, inode):
+        pass
+
     def read(self, inode, off, size):
         log.debug('read %d %d:%d', inode, off, size)
         filenode = self.superblock[inode]
@@ -148,6 +154,15 @@ class JsonSysClassFS(llfuse.Operations):
         if filenode.contents != None:
             return filenode.contents[off:off+size]
         return b''
+
+    def write(self, inode, off, buf):
+        log.debug('write %d %d:%s', inode, off, buf)
+        filenode = self.superblock[inode]
+        assert filenode.type == NodeType.File
+        if filenode.contents == None:
+            filenode.contents = b''
+        filenode.contents = filenode.contents[:offset] + buf + filenode.contents[offset+len(buf):]
+        return len(buf)
 
 
 class TestJscfsMethods(unittest.TestCase):
