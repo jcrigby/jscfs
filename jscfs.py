@@ -62,8 +62,8 @@ class Node:
         attr.st_atime_ns = stamp
         attr.st_ctime_ns = stamp
         attr.st_mtime_ns = stamp
-        attr.st_uid = getgrnam(kwargs.get('group', None)).gr_gid
-        attr.st_gid = getpwnam(kwargs.get('user', None)).pw_uid
+        attr.st_gid = getgrnam(kwargs.get('group', None)).gr_gid
+        attr.st_uid = getpwnam(kwargs.get('user', None)).pw_uid
         attr.st_ino = inode
         self.attr = attr
 
@@ -116,6 +116,9 @@ class JsonSysClassFS(llfuse.Operations):
         return s
 
     # llfuse.Operations start here
+    def setattr(self, inode, attr, fields, fh, ctx):
+        log.debug("setattr: inode {}, attr {}, fields {}, fh {}, ctx {}".format(inode, attr, fields, fh, ctx))
+        return self.getattr(inode)
 
     def getattr(self, inode, ctx=None):
         node = self.superblock[inode]
@@ -147,11 +150,17 @@ class JsonSysClassFS(llfuse.Operations):
             yield(child.name, self.getattr(child.inode), n+1)
 
     def open(self, inode, flags, ctx):
-        log.debug('open %d', inode)
+        log.debug('open %d, flags %d', inode, flags)
         filenode = self.superblock[inode]
         assert filenode.type == NodeType.File
-        if flags & os.O_RDWR or flags & os.O_WRONLY:
+        # log.debug("open:flags ={} & os.O_RDWR = {}, & = {}".format(flags, os.O_RDWR, flags & os.O_RDWR))
+        # log.debug("open:flags ={} & os.O_WRONLY = {}, & = {}".format(flags, os.O_WRONLY, flags & os.O_WRONLY))
+        # log.debug("open:flags ={} & os.O_RDONLY = {}, & = {}".format(flags, os.O_RDONLY, flags & os.O_RDONLY))
+
+        # if flags & os.O_RDWR or flags & os.O_WRONLY:
+        if flags & os.O_RDONLY:
             raise llfuse.FUSEError(errno.EPERM)
+
         return inode
 
     def release(self, inode):
@@ -171,8 +180,14 @@ class JsonSysClassFS(llfuse.Operations):
         assert filenode.type == NodeType.File
         if filenode.contents == None:
             filenode.contents = b''
-        filenode.contents = filenode.contents[:offset] + buf + filenode.contents[offset+len(buf):]
+        filenode.contents = filenode.contents[:off] + buf + filenode.contents[off+len(buf):]
         return len(buf)
+
+    def flush(self, fh):
+        log.debug("flush {}".format(fh))
+
+    def fsync(self, datasync):
+        log.debug("fsync {}".format(datasync))
 
 
 class TestJscfsMethods(unittest.TestCase):
